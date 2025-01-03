@@ -95,9 +95,10 @@ def prepare_benchmarking(context, *args, **kwargs):
 
     # Build moveit_config using the robot name and kinematic file
     robot_name = benchmarking_config["robot_name"]
+    package_name = benchmarking_config["moveit_config_pkg"]
 
     moveit_config = (
-        MoveItConfigsBuilder(robot_name)
+        MoveItConfigsBuilder(robot_name, "robot_description", package_name)
         .robot_description_kinematics(
             file_path=os.path.join(
                 get_package_share_directory(benchmarking_config["moveit_config_pkg"]),
