@@ -39,6 +39,7 @@ def load_benchmarking_config(ik_benchmarking_pkg, ik_benchmarking_config):
     # Optional overrides for non-standard MoveIt config layouts (e.g., MoveIt Pro style)
     urdf_path = config_data.get("urdf_path")
     srdf_path = config_data.get("srdf_path")
+    joint_limits_path = config_data.get("joint_limits_path")
     kinematics_source_pkg = config_data.get("kinematics_source_pkg", moveit_config_pkg)
     kinematics_subdir = config_data.get("kinematics_subdir", "config")
 
@@ -65,6 +66,7 @@ def load_benchmarking_config(ik_benchmarking_pkg, ik_benchmarking_config):
         "ik_iteration_display_step": ik_iteration_display_step,
         "urdf_path": urdf_path,
         "srdf_path": srdf_path,
+        "joint_limits_path": joint_limits_path,
         "kinematics_source_pkg": kinematics_source_pkg,
         "kinematics_subdir": kinematics_subdir,
         "ik_solvers": ik_solvers_list,
@@ -118,6 +120,10 @@ def prepare_benchmarking(context, *args, **kwargs):
     if benchmarking_config.get("srdf_path"):
         builder = builder.robot_description_semantic(
             file_path=os.path.join(pkg_share, benchmarking_config["srdf_path"])
+        )
+    if benchmarking_config.get("joint_limits_path"):
+        builder = builder.joint_limits(
+            file_path=os.path.join(pkg_share, benchmarking_config["joint_limits_path"])
         )
 
     # Per-solver kinematics YAML may live in a different package than moveit_config_pkg

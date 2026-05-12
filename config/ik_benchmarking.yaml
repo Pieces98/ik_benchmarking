@@ -10,6 +10,7 @@ ik_iteration_display_step: 100  # Logging frequency
 # Omit these to use MoveItConfigsBuilder defaults (config/<robot>.urdf.xacro, config/<robot>.srdf).
 urdf_path: description/mw2.urdf.xacro
 srdf_path: config/moveit/mw2.srdf
+joint_limits_path: config/moveit/joint_limits.yaml
 
 # Where per-solver kinematics YAMLs live. Defaults: kinematics_source_pkg=moveit_config_pkg, kinematics_subdir=config.
 # Set kinematics_source_pkg=ik_benchmarking to keep solver configs inside this package (mw2_base_config stays clean).
