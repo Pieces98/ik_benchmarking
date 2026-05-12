@@ -71,6 +71,11 @@ def build_moveit_config(cfg):
         builder = builder.joint_limits(
             file_path=os.path.join(pkg_share, cfg["joint_limits_path"])
         )
+    # Restrict planning_pipelines to ompl only. Otherwise the builder auto-discovers
+    # pilz_industrial_motion_planner from its default_configs directory, which then forces
+    # pilz_cartesian_limits.yaml to be loaded from mw2_base_config — and that file isn't
+    # present in MoveIt Pro–style layouts. We only run IK here, so pipeline choice is moot.
+    builder = builder.planning_pipelines(pipelines=["ompl"])
     kin_pkg_share = get_package_share_directory(cfg["kinematics_source_pkg"])
     kinematics_file = os.path.join(kin_pkg_share, cfg["kinematics_subdir"], cfg["kinematics_file"])
     return builder.robot_description_kinematics(file_path=kinematics_file).to_moveit_configs()
