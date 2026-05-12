@@ -1,166 +1,132 @@
 # -*- coding: utf-8 -*-
+# Reads URDF (xacro-expanded) and SRDF from disk and pushes them as
+# robot_description / robot_description_semantic parameters on the server node.
+# The server then forwards both to the IKBenchmarking child so MoveIt Pro's
+# RobotModelLoader builds the model from those parameters — no /move_group
+# required. This bypasses MoveItConfigsBuilder entirely (whose default file
+# layout doesn't match mw2_base_config's MoveIt Pro style).
+
 import os
+import xacro
 import yaml
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from moveit_configs_utils import MoveItConfigsBuilder
 from ament_index_python.packages import get_package_share_directory
 
 
-def load_benchmarking_config(ik_benchmarking_pkg, ik_benchmarking_config):
-    # Construct the configuration file path
-    file_path = os.path.join(
-        get_package_share_directory(ik_benchmarking_pkg),
-        "config",
-        ik_benchmarking_config,
-    )
-    # Open file and parse content
-    with open(file_path, "r") as config_file:
-        config_data = yaml.safe_load(config_file)
+def load_benchmarking_config(pkg, filename):
+    file_path = os.path.join(get_package_share_directory(pkg), "config", filename)
+    with open(file_path, "r") as f:
+        config_data = yaml.safe_load(f)
 
-    # Extract content and handle missing keys
-    def get_config_data(key, parent_data=None):
-        source_data = parent_data if parent_data else config_data
-        value = source_data.get(key)
-        if value is None:
+    def need(key):
+        v = config_data.get(key)
+        if v is None:
             raise ValueError(f"Missing required configuration key {key}")
-        return value
+        return v
 
-    moveit_config_pkg = get_config_data("moveit_config_pkg")
-    robot_name = get_config_data("robot_name")
-    planning_group = get_config_data("planning_group")
-    sample_size = get_config_data("sample_size")
-    random_seed = get_config_data("random_seed")
-    ik_timeout = get_config_data("ik_timeout")
-    ik_iteration_display_step = get_config_data("ik_iteration_display_step")
-
-    # Extract IK solvers details
-    ik_solvers_list = []
-    ik_solvers_data = get_config_data("ik_solvers")
-
-    for ik_value in ik_solvers_data:
-        ik_solver_name = ik_value.get("name")
-        ik_solver_kinematics_file = ik_value.get("kinematics_file")
-
-        ik_solvers_list.append(
-            {"name": ik_solver_name, "kinematics_file": ik_solver_kinematics_file}
-        )
-
-    # Return a dictionary to avoid errors due to return order
     return {
-        "moveit_config_pkg": moveit_config_pkg,
-        "robot_name": robot_name,
-        "planning_group": planning_group,
-        "sample_size": sample_size,
-        "random_seed": random_seed,
-        "ik_timeout": ik_timeout,
-        "ik_iteration_display_step": ik_iteration_display_step,
-        "ik_solvers": ik_solvers_list,
+        "urdf_pkg": config_data.get("urdf_pkg", "mw2_description"),
+        "urdf_path": config_data.get("urdf_path", "urdf/mw2.urdf"),
+        "srdf_pkg": config_data.get("srdf_pkg", "mw2_base_config"),
+        "srdf_path": config_data.get("srdf_path", "config/moveit/mw2.srdf"),
+        "planning_group": need("planning_group"),
+        "sample_size": need("sample_size"),
+        "random_seed": need("random_seed"),
+        "ik_timeout": need("ik_timeout"),
+        "ik_iteration_display_step": need("ik_iteration_display_step"),
+        "check_self_collision": config_data.get("check_self_collision", False),
+        "ik_solvers": [
+            {"name": s.get("name")} for s in need("ik_solvers")
+        ],
     }
 
 
-# Utilize Opaque functions to retrieve the string values of launch arguments
+def _read_text_from_pkg(pkg, relpath):
+    abspath = os.path.join(get_package_share_directory(pkg), relpath)
+    with open(abspath, "r") as f:
+        return f.read()
+
+
+def _process_urdf(pkg, relpath):
+    """Resolve URDF text. If the path ends in .xacro it is expanded; otherwise
+    the file is read as-is. Xacro expansion handles `$(find ...)` and relative
+    `<xacro:include>` so the dependent files (e.g. mw2.ros2_control.xacro,
+    mw2_description/urdf/mw2.urdf) are pulled in correctly."""
+    abspath = os.path.join(get_package_share_directory(pkg), relpath)
+    if abspath.endswith(".xacro"):
+        return xacro.process_file(abspath).toxml()
+    with open(abspath, "r") as f:
+        return f.read()
+
+
 def prepare_benchmarking(context, *args, **kwargs):
-    # Load the ik_benchmarking configuration data
-    ik_benchmarking_pkg = "ik_benchmarking"
-    ik_benchmarking_config = "ik_benchmarking.yaml"
-    benchmarking_config = load_benchmarking_config(
-        ik_benchmarking_pkg, ik_benchmarking_config
-    )
+    cfg = load_benchmarking_config("ik_benchmarking", "ik_benchmarking.yaml")
 
-    # Get the actual values of ik_solver and kinematics file
     ik_solver_name = LaunchConfiguration("ik_solver_name").perform(context)
-    kinematics_file_name = ""
-
-    if ik_solver_name != "":
-        found = False
-        for _, ik_solver in enumerate(benchmarking_config["ik_solvers"]):
-            if ik_solver["name"] == ik_solver_name:
-                found = True
-                kinematics_file_name = ik_solver["kinematics_file"]
-                break
-
-        if not found:
-            print(
-                f"\n Error: The requested IK solver name {ik_solver_name} is not available in the ik_benchmarking configuration file.\n"
-            )
-            exit(1)
-    else:
+    if ik_solver_name == "":
+        print("\n Error: The 'ik_solver_name' argument should be provided.\n")
+        exit(1)
+    if not any(s["name"] == ik_solver_name for s in cfg["ik_solvers"]):
         print(
-            f"\n Error: The 'ik_solver_name' argument should be provided when starting the 'start_ik_benchmarking.launch.py' file.\n"
+            f"\n Error: The requested IK solver name '{ik_solver_name}' is not in ik_benchmarking.yaml.\n"
         )
         exit(1)
 
-    # Build moveit_config using the robot name and kinematic file
-    robot_name = benchmarking_config["robot_name"]
+    urdf_text = _process_urdf(cfg["urdf_pkg"], cfg["urdf_path"])
+    srdf_text = _read_text_from_pkg(cfg["srdf_pkg"], cfg["srdf_path"])
 
-    moveit_config = (
-        MoveItConfigsBuilder(robot_name)
-        .robot_description_kinematics(
-            file_path=os.path.join(
-                get_package_share_directory(benchmarking_config["moveit_config_pkg"]),
-                "config",
-                kinematics_file_name,
-            )
-        )
-        .to_moveit_configs()
+    print(
+        f"\n Running IK benchmarking against MoveIt Pro for solver: {ik_solver_name} "
+        f"(self-collision={'on' if cfg['check_self_collision'] else 'off'}, "
+        f"URDF={cfg['urdf_pkg']}/{cfg['urdf_path']}, "
+        f"SRDF={cfg['srdf_pkg']}/{cfg['srdf_path']})\n"
     )
 
-    # Start benchmarking server node with required robot description and planning_group parameters
-    benchmarking_server_node = Node(
+    server = Node(
         package="ik_benchmarking",
         executable="ik_benchmarking_server",
         output="screen",
         parameters=[
-            moveit_config.robot_description,
-            moveit_config.robot_description_semantic,
-            moveit_config.robot_description_kinematics,
             {
-                "planning_group": benchmarking_config["planning_group"],
-                "random_seed": benchmarking_config["random_seed"],
-                "sample_size": benchmarking_config["sample_size"],
-                "ik_timeout": benchmarking_config["ik_timeout"],
-                "ik_iteration_display_step": benchmarking_config[
-                    "ik_iteration_display_step"
-                ],
+                "planning_group": cfg["planning_group"],
+                "random_seed": cfg["random_seed"],
+                "sample_size": cfg["sample_size"],
+                "ik_timeout": cfg["ik_timeout"],
+                "ik_iteration_display_step": cfg["ik_iteration_display_step"],
+                "check_self_collision": cfg["check_self_collision"],
+                "robot_description": urdf_text,
+                "robot_description_semantic": srdf_text,
             },
         ],
     )
 
-    print(
-        f"\n Running calculations for IK Solver: {ik_solver_name} \n",
-    )
-
-    # Start benchmarking client node with the same parameters as the server, but with delay
-    benchmarking_client_node = Node(
+    client = Node(
         package="ik_benchmarking",
         executable="ik_benchmarking_client",
         output="screen",
         parameters=[
-            moveit_config.robot_description,
-            moveit_config.robot_description_semantic,
-            moveit_config.robot_description_kinematics,
             {
-                "planning_group": benchmarking_config["planning_group"],
-                "sample_size": benchmarking_config["sample_size"],
+                "planning_group": cfg["planning_group"],
+                "sample_size": cfg["sample_size"],
                 "ik_solver": ik_solver_name,
             },
         ],
     )
 
-    return [benchmarking_server_node, benchmarking_client_node]
+    return [server, client]
 
 
 def generate_launch_description():
-    # Declare a launch argument to decide the IK solver and kinematic file to use
-    declare_ik_solver_name_arg = DeclareLaunchArgument(
-        "ik_solver_name",
-        default_value="",
-        description="IK solver name corresponding to the name value in ik_benchmarking.yaml config file.",
-    )
-
     return LaunchDescription(
-        [declare_ik_solver_name_arg, OpaqueFunction(function=prepare_benchmarking)]
+        [
+            DeclareLaunchArgument(
+                "ik_solver_name",
+                default_value="",
+                description="IK solver name corresponding to the name value in ik_benchmarking.yaml.",
+            ),
+            OpaqueFunction(function=prepare_benchmarking),
+        ]
     )

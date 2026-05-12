@@ -3,8 +3,8 @@
 <package format="3">
   <name>ik_benchmarking</name>
   <version>0.0.0</version>
-  <description>Utilities for IK solver benchmarking with MoveIt 2</description>
-  <maintainer email="mohamed.s.raessa@gmail.com">Mohamed Raessa</maintainer>
+  <description>IK solver benchmarking utility for the MoveIt Pro container. The launch file reads URDF (xacro-expanded) and SRDF from disk and injects them as robot_description / robot_description_semantic parameters on the server node, which builds the robot model via MoveIt Pro's RobotModelLoader — no running /move_group needed.</description>
+  <maintainer email="yunbeom.kim@wattrobotics.ai">Yunbeom Kim</maintainer>
   <license>
     Apache License, Version 2.0
     http://www.apache.org/licenses/LICENSE-2.0
@@ -16,17 +16,19 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <depend>action_msgs</depend>
-  <depend>moveit_configs_utils</depend>
-  <depend>python3-pandas</depend>
-  <depend>python3-seaborn</depend>
+  <depend>fmt</depend>
+  <depend>moveit_core</depend>
+  <depend>moveit_pro_base</depend>
+  <depend>pose_ik</depend>
+  <depend>pro_rrt</depend>
+  <depend>random_numbers</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
   <depend>rclpy</depend>
 
-  <!--
-    MoveIt Pro container provides moveit_py and pose_ik_plugin via the overlay.
-    Both are loaded at runtime; rosdep keys are unavailable on this image, so we
-    list neither here. See README for required environment.
-  -->
-  <exec_depend>python3-numpy</exec_depend>
+  <!-- Visualizer script depends on these Python libraries at runtime. -->
+  <exec_depend>python3-pandas</exec_depend>
+  <exec_depend>python3-seaborn</exec_depend>
 
   <member_of_group>rosidl_interface_packages</member_of_group>
 

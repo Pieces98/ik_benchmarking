@@ -5,28 +5,86 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# This branch targets the MoveIt Pro container, where moveit_ros_planning_interface
-# does not exist. The C++ benchmarker (ik_benchmarking_server / _client) is therefore
-# not built here — pose_ik is exercised via scripts/pose_ik_python_benchmarker.py
-# instead, which loads the plugin through moveit_py.
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
-find_package(rclpy REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
-find_package(std_msgs REQUIRED)
 
-# Action interface kept for parity with the mw2-moveit2-ik-benchmarking branch.
+find_package(fmt REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(rclpy REQUIRED)
+
+find_package(moveit_core REQUIRED)
+find_package(moveit_pro_base REQUIRED)
+find_package(pose_ik REQUIRED)
+find_package(pro_rrt REQUIRED)
+find_package(random_numbers REQUIRED)
+
+find_package(rosidl_default_generators REQUIRED)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/IKBenchmark.action"
   DEPENDENCIES std_msgs
 )
+
+add_executable(ik_benchmarking_server
+  src/ik_benchmarking.cpp
+  src/ik_benchmarking_server.cpp
+)
+add_executable(ik_benchmarking_client
+  src/ik_benchmarking_client.cpp
+)
+
+target_include_directories(ik_benchmarking_server PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+target_include_directories(ik_benchmarking_client PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+target_link_libraries(ik_benchmarking_server rclcpp::rclcpp fmt::fmt)
+target_link_libraries(ik_benchmarking_client rclcpp::rclcpp)
+
+rosidl_target_interfaces(ik_benchmarking_server ${PROJECT_NAME} "rosidl_typesupport_cpp")
+rosidl_target_interfaces(ik_benchmarking_client ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
+target_compile_features(ik_benchmarking_server PUBLIC c_std_99 cxx_std_17)
+target_compile_features(ik_benchmarking_client PUBLIC c_std_99 cxx_std_17)
+
+ament_target_dependencies(
+  ik_benchmarking_server
+  "moveit_core"
+  "moveit_pro_base"
+  "pose_ik"
+  "pro_rrt"
+  "random_numbers"
+  "rclcpp"
+  "rclcpp_action"
+  "rosidl_default_runtime"
+)
+ament_target_dependencies(
+  ik_benchmarking_client
+  "moveit_core"
+  "moveit_pro_base"
+  "pose_ik"
+  "pro_rrt"
+  "random_numbers"
+  "rclcpp"
+  "rclcpp_action"
+  "rosidl_default_runtime"
+)
+
+install(TARGETS
+  ik_benchmarking_server
+  ik_benchmarking_client
+  DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch config
     DESTINATION share/${PROJECT_NAME}
 )
 
 install(PROGRAMS
-  scripts/pose_ik_python_benchmarker.py
+  scripts/ik_benchmarking_data_generator.py
   scripts/ik_benchmarking_data_visualizer.py
   DESTINATION lib/${PROJECT_NAME}
 )

@@ -19,16 +19,15 @@ int main(int argc, char const* argv[]) {
     node_options.automatically_declare_parameters_from_overrides(true);
     auto node = rclcpp::Node::make_shared("ik_benchmarking_client", node_options);
 
-    RCLCPP_INFO(node->get_logger(), "IK Benchmarking action client started.");
+    RCLCPP_INFO(node->get_logger(), "IK Benchmarking (MoveIt Pro) action client started.");
 
-    // Get the solver and output path with ros parameters
     std::string ik_solver{};
     try {
         ik_solver = node->get_parameter("ik_solver").as_string();
     } catch (const rclcpp::exceptions::ParameterNotDeclaredException& e) {
         RCLCPP_ERROR(
             node->get_logger(),
-            "Ik Benchmarking client failed to load 'ik_solver' parameter. Shutting down node.");
+            "IK Benchmarking client failed to load 'ik_solver' parameter. Shutting down node.");
         rclcpp::shutdown();
         return 1;
     }
@@ -41,14 +40,12 @@ int main(int argc, char const* argv[]) {
         return 1;
     }
 
-    // Send a goal to the server
     auto goal = IKBenchmark::Goal();
     goal.solver_name = ik_solver;
     goal.csv_filename = csv_output_file;
 
     auto send_goal_options = rclcpp_action::Client<IKBenchmark>::SendGoalOptions();
 
-    // Set up a callback function to handle the result
     send_goal_options.result_callback =
         [&](const rclcpp_action::ClientGoalHandle<IKBenchmark>::WrappedResult& result) {
             if (result.result->calculation_done) {
@@ -56,7 +53,6 @@ int main(int argc, char const* argv[]) {
             } else {
                 RCLCPP_ERROR(node->get_logger(), "The IK Benchmarking action failed.");
             }
-            // Shutdown after receiving the result
             rclcpp::shutdown();
         };
 
