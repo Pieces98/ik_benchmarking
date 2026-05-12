@@ -1,0 +1,7 @@
+manipulator:
+  kinematics_solver: pick_ik/PickIkPlugin
+  kinematics_solver_timeout: 0.05
+  mode: global
+  position_scale: 1.0
+  rotation_scale: 0.5
+  memetic_num_threads: 4

@@ -8,8 +8,14 @@ repositories:
   trac_ik:
     type: git
     url: https://bitbucket.org/traclabs/trac_ik
-    version: rolling-devel
+    # Pin to last Humble-compatible release. Upstream PR #41 (2025-02-10) switched to
+    # urdf/model.hpp, which only exists in ROS 2 Iron+. Bump when workspace moves to Jazzy/Rolling.
+    version: 2.0.1
   bio_ik:
     type: git
     url: https://github.com/PickNikRobotics/bio_ik.git
     version: ros2
+  pick_ik:
+    type: git
+    url: https://github.com/PickNikRobotics/pick_ik.git
+    version: main

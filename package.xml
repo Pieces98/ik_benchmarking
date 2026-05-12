@@ -26,6 +26,12 @@
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
 
+  <!-- IK solver plugins loaded at runtime via pluginlib. -->
+  <exec_depend>moveit_kinematics</exec_depend>
+  <exec_depend>trac_ik_kinematics_plugin</exec_depend>
+  <exec_depend>bio_ik</exec_depend>
+  <exec_depend>pick_ik</exec_depend>
+
   <member_of_group>rosidl_interface_packages</member_of_group>
 
   <test_depend>ament_lint_auto</test_depend>

@@ -1,0 +1,4 @@
+manipulator:
+  kinematics_solver: bio_ik/BioIKKinematicsPlugin
+  kinematics_solver_timeout: 0.05
+  mode: bio2_memetic

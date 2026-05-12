@@ -36,6 +36,12 @@ def load_benchmarking_config(ik_benchmarking_pkg, ik_benchmarking_config):
     ik_timeout = get_config_data("ik_timeout")
     ik_iteration_display_step = get_config_data("ik_iteration_display_step")
 
+    # Optional overrides for non-standard MoveIt config layouts (e.g., MoveIt Pro style)
+    urdf_path = config_data.get("urdf_path")
+    srdf_path = config_data.get("srdf_path")
+    kinematics_source_pkg = config_data.get("kinematics_source_pkg", moveit_config_pkg)
+    kinematics_subdir = config_data.get("kinematics_subdir", "config")
+
     # Extract IK solvers details
     ik_solvers_list = []
     ik_solvers_data = get_config_data("ik_solvers")
@@ -57,6 +63,10 @@ def load_benchmarking_config(ik_benchmarking_pkg, ik_benchmarking_config):
         "random_seed": random_seed,
         "ik_timeout": ik_timeout,
         "ik_iteration_display_step": ik_iteration_display_step,
+        "urdf_path": urdf_path,
+        "srdf_path": srdf_path,
+        "kinematics_source_pkg": kinematics_source_pkg,
+        "kinematics_subdir": kinematics_subdir,
         "ik_solvers": ik_solvers_list,
     }
 
@@ -95,18 +105,30 @@ def prepare_benchmarking(context, *args, **kwargs):
 
     # Build moveit_config using the robot name and kinematic file
     robot_name = benchmarking_config["robot_name"]
+    package_name = benchmarking_config["moveit_config_pkg"]
+    pkg_share = get_package_share_directory(package_name)
 
-    moveit_config = (
-        MoveItConfigsBuilder(robot_name)
-        .robot_description_kinematics(
-            file_path=os.path.join(
-                get_package_share_directory(benchmarking_config["moveit_config_pkg"]),
-                "config",
-                kinematics_file_name,
-            )
+    builder = MoveItConfigsBuilder(robot_name, package_name=package_name)
+
+    # Override URDF/SRDF lookups when the MoveIt config package uses a non-standard layout
+    if benchmarking_config.get("urdf_path"):
+        builder = builder.robot_description(
+            file_path=os.path.join(pkg_share, benchmarking_config["urdf_path"])
         )
-        .to_moveit_configs()
+    if benchmarking_config.get("srdf_path"):
+        builder = builder.robot_description_semantic(
+            file_path=os.path.join(pkg_share, benchmarking_config["srdf_path"])
+        )
+
+    # Per-solver kinematics YAML may live in a different package than moveit_config_pkg
+    kin_pkg_share = get_package_share_directory(benchmarking_config["kinematics_source_pkg"])
+    kinematics_file_path = os.path.join(
+        kin_pkg_share, benchmarking_config["kinematics_subdir"], kinematics_file_name
     )
+
+    moveit_config = builder.robot_description_kinematics(
+        file_path=kinematics_file_path
+    ).to_moveit_configs()
 
     # Start benchmarking server node with required robot description and planning_group parameters
     benchmarking_server_node = Node(
