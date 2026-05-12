@@ -9,6 +9,7 @@ ik_iteration_display_step: 100  # Logging frequency
 # Non-standard layout overrides (mw2_base_config is MoveIt Pro style).
 urdf_path: description/mw2.urdf.xacro
 srdf_path: config/moveit/mw2.srdf
+joint_limits_path: config/moveit/joint_limits.yaml
 
 # Per-solver kinematics YAML lives inside this package, not in mw2_base_config.
 kinematics_source_pkg: ik_benchmarking

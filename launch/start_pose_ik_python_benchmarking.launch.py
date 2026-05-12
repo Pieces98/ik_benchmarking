@@ -51,6 +51,7 @@ def load_benchmarking_config():
         "ik_timeout": cfg["ik_timeout"],
         "urdf_path": cfg.get("urdf_path"),
         "srdf_path": cfg.get("srdf_path"),
+        "joint_limits_path": cfg.get("joint_limits_path"),
         "kinematics_source_pkg": cfg.get("kinematics_source_pkg", cfg["moveit_config_pkg"]),
         "kinematics_subdir": cfg.get("kinematics_subdir", "config"),
         "kinematics_file": pose_ik["kinematics_file"],
@@ -65,6 +66,10 @@ def build_moveit_config(cfg):
     if cfg["srdf_path"]:
         builder = builder.robot_description_semantic(
             file_path=os.path.join(pkg_share, cfg["srdf_path"])
+        )
+    if cfg["joint_limits_path"]:
+        builder = builder.joint_limits(
+            file_path=os.path.join(pkg_share, cfg["joint_limits_path"])
         )
     kin_pkg_share = get_package_share_directory(cfg["kinematics_source_pkg"])
     kinematics_file = os.path.join(kin_pkg_share, cfg["kinematics_subdir"], cfg["kinematics_file"])
