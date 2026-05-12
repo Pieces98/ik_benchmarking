@@ -126,6 +126,13 @@ def prepare_benchmarking(context, *args, **kwargs):
             file_path=os.path.join(pkg_share, benchmarking_config["joint_limits_path"])
         )
 
+    # Restrict planning_pipelines to ompl only. Otherwise MoveItConfigsBuilder auto-discovers
+    # pilz_industrial_motion_planner from its bundled default_configs directory, which then
+    # forces a load of pilz_cartesian_limits.yaml from the robot's config dir. mw2_base_config
+    # (MoveIt Pro style) doesn't ship that file. We only run IK here, not planning, so the
+    # pipeline choice is moot.
+    builder = builder.planning_pipelines(pipelines=["ompl"])
+
     # Per-solver kinematics YAML may live in a different package than moveit_config_pkg
     kin_pkg_share = get_package_share_directory(benchmarking_config["kinematics_source_pkg"])
     kinematics_file_path = os.path.join(
