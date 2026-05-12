@@ -10,7 +10,9 @@ using namespace std::chrono_literals;
 
 void IKBenchmarking::initialize() {
     const auto seed = static_cast<unsigned int>(node_->get_parameter("random_seed").as_int());
-    random_numbers::RandomNumberGenerator generator_{seed};
+    // NOTE: assign to the member generator_ (not a local of the same name) so the
+    // seed actually applies to the RNG used by setToRandomPositions in gather_data().
+    generator_ = std::make_unique<random_numbers::RandomNumberGenerator>(seed);
 
     planning_group_name_ = node_->get_parameter("planning_group").as_string();
     joint_model_group_ = robot_model_->getJointModelGroup(planning_group_name_);
@@ -35,13 +37,23 @@ void IKBenchmarking::gather_data() {
     ik_iteration_display_step_ =
         static_cast<size_t>(node_->get_parameter("ik_iteration_display_step").as_int());
 
+    // Write CSV header now that joint names are known. Each trial row appends one
+    // target_<joint> column per active joint, matching the format used on the
+    // mw2-moveit-pro-ik-benchmarking branch so the visualizer can ingest both.
+    const auto &joint_names = joint_model_group_->getActiveJointModelNames();
+    data_file_ << "trial,found_ik,solve_time,position_error,orientation_error";
+    for (const auto &name : joint_names) {
+        data_file_ << ",target_" << name;
+    }
+    data_file_ << "\n";
+
     for (size_t i = 0; i < sample_size_; ++i) {
         if ((i + 1) % ik_iteration_display_step_ == 0) {
             RCLCPP_INFO(logger_, "Solved sample %ld/%ld ...", i + 1, sample_size_);
         }
 
         // Generate a random state and solve Forward Kinematics (FK)
-        robot_state_->setToRandomPositions(joint_model_group_, generator_);
+        robot_state_->setToRandomPositions(joint_model_group_, *generator_);
         robot_state_->updateLinkTransforms();
         const Eigen::Isometry3d tip_link_pose =
             robot_state_->getGlobalLinkTransform(tip_link_name_);
@@ -61,7 +73,7 @@ void IKBenchmarking::gather_data() {
         RCLCPP_DEBUG(logger_, "The sampled random joint values are:\n%s\n", ss.str().c_str());
 
         // Randomize the initial seed state of the robot before solving IK
-        robot_state_->setToRandomPositions(joint_model_group_, generator_);
+        robot_state_->setToRandomPositions(joint_model_group_, *generator_);
         robot_state_->updateLinkTransforms();
 
         // Solve Inverse kinematics (IK)
@@ -91,7 +103,11 @@ void IKBenchmarking::gather_data() {
         double orientation_error = orientation.angularDistance(ik_orientation);
 
         data_file_ << std::boolalpha << i + 1 << "," << found_ik << "," << solve_time.count() << ","
-                   << position_error << "," << orientation_error << "\n";
+                   << position_error << "," << orientation_error;
+        for (const double q : random_joint_values) {
+            data_file_ << "," << q;
+        }
+        data_file_ << "\n";
     }
 
     // Average IK solving time and success rate

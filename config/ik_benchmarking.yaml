@@ -1,10 +1,10 @@
 moveit_config_pkg: mw2_base_config  # MoveIt config package providing URDF and SRDF
 robot_name: mw2  # Name of the robot
 planning_group: manipulator  # Planning group from <moveit_config_pkg>/config/moveit/mw2.srdf
-sample_size: 1000  # Number of IK samples per solver
+sample_size: 10000  # Number of IK samples per solver (matches mw2-moveit-pro-ik-benchmarking for cross-comparison)
 random_seed: 12345  # Seed for reproducible random joint sampling
 ik_timeout: 0.1  # External wall-clock cap (seconds) — passed to setFromIK, applied uniformly to all solvers
-ik_iteration_display_step: 100  # Logging frequency
+ik_iteration_display_step: 1000  # Logging frequency
 
 # Non-standard layout overrides (optional). Paths are relative to <moveit_config_pkg>/share.
 # Omit these to use MoveItConfigsBuilder defaults (config/<robot>.urdf.xacro, config/<robot>.srdf).

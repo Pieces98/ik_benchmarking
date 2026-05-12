@@ -6,6 +6,7 @@
 #include <random_numbers/random_numbers.h>
 
 #include <fstream>
+#include <memory>
 #include <rclcpp/rclcpp.hpp>
 
 /**
@@ -30,7 +31,6 @@ class IKBenchmarking {
           robot_state_(new moveit::core::RobotState(robot_model_)),
           calculation_done_(false) {
         data_file_.open("ik_benchmarking_data.csv", std::ios::app);
-        data_file_ << "trial,found_ik,solve_time,position_error,orientation_error\n";
     }
 
     /**
@@ -51,7 +51,6 @@ class IKBenchmarking {
             "ik_benchmarking_data"
             ".csv",
             std::ios::app);
-        data_file_ << "trial,found_ik,solve_time,position_error,orientation_error\n";
     }
 
     /**
@@ -72,7 +71,6 @@ class IKBenchmarking {
           robot_state_(new moveit::core::RobotState(robot_model_)),
           calculation_done_(false) {
         data_file_.open(std::string(solver) + "_" + output_file + ".csv", std::ios::app);
-        data_file_ << "trial,found_ik,solve_time,position_error,orientation_error\n";
     }
 
     /**
@@ -125,8 +123,8 @@ class IKBenchmarking {
     std::string
         tip_link_name_;  ///< The name of the tip link in the planning group used to solve IK.
 
-    random_numbers::RandomNumberGenerator
-        generator_;  ///< Generator for random joint values within bounds.
+    std::unique_ptr<random_numbers::RandomNumberGenerator>
+        generator_;  ///< Generator for random joint values within bounds. Seeded in initialize().
 
     size_t sample_size_;  ///< The number of samples to run for collecting benchmarking data.
     double ik_timeout_;  ///< Maximum time (in seconds) allowed for an IK solver to find a solution.
