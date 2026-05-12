@@ -1,15 +1,4 @@
-repositories:
-  # Example MoveIt config package
-  moveit_resources:
-    type: git
-    url: https://github.com/ros-planning/moveit_resources.git
-    version: ros2
-  # IK Solvers
-  trac_ik:
-    type: git
-    url: https://bitbucket.org/traclabs/trac_ik
-    version: rolling-devel
-  bio_ik:
-    type: git
-    url: https://github.com/PickNikRobotics/bio_ik.git
-    version: ros2
+# This branch targets the MoveIt Pro container only. The pose_ik plugin is provided by the
+# MoveIt Pro overlay (no source pull required). External IK-solver sources are intentionally
+# omitted — they belong on the mw2-moveit2-ik-benchmarking branch.
+repositories: {}
