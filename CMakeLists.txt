@@ -13,6 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # Action interface kept for parity with the mw2-moveit2-ik-benchmarking branch.
 rosidl_generate_interfaces(${PROJECT_NAME}
